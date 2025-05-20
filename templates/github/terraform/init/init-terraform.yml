@@ -1,0 +1,74 @@
+name: Init Terraform
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      azureConnection:
+        required: true
+        type: string
+      appName:
+        required: true
+        type: string
+      terraformPathFolder:
+        required: true
+        type: string
+      resoureGroupShared:
+        required: true
+        type: string
+      storageAccountShared:
+        required: true
+        type: string
+      appConfigName:
+        required: true
+        type: string
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.terraformPathFolder }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }} # Store your service principal in repo secrets
+
+      - name: Fetch variables from Azure App Configuration
+        uses: Azure/azure-appconfiguration-action@v1
+        with:
+          connection-string: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING }} # Store in secrets
+          key-filter: "${{ inputs.appName }}:global:shared:*"
+          label-filter: ""
+          trim-key-prefix: "${{ inputs.appName }}:global:shared:"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Get Storage Account Key
+        id: getkey
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az storage account keys list \
+              --resource-group "${{ inputs.resoureGroupShared }}" \
+              --account-name "${{ inputs.storageAccountShared }}" \
+              --query "[0].value" -o tsv > key.txt
+            echo "sakey=$(cat key.txt)" >> $GITHUB_ENV
+
+      - name: Terraform Init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ env.sakey }}"
