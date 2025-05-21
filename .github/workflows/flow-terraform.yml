@@ -1,63 +1,130 @@
-name: Terraform Workflow
+name: Flow Terraform
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      azureConnection:
+        required: true
+        type: string
+      appName:
+        required: true
+        type: string
+      terraformPathFolder:
+        required: false
+        type: string
+      resoureGroupShared:
+        required: false
+        type: string
+      storageAccountShared:
+        required: false
+        type: string
+      appConfigName:
+        required: false
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+      AZURE_APPCONFIG_CONNECTION_STRING:
+        required: false
 
 jobs:
   plan:
+    name: Plan Terraform for ${{ inputs.environment }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          terraform_version: 1.0.0
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Fetch variables from Azure App Configuration (if connection string provided)
+      - name: Fetch variables from App Configuration
+        if: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING != '' }}
+        uses: Azure/appconfiguration-get-keyvalues@v1
+        with:
+          connection-string: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING }}
+          key-filter: "*"
+          label-filter: ${{ inputs.environment }}
+
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Terraform Init
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+                         -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+                         -backend-config="container_name=tfstate" \
+                         -backend-config="key=${{ inputs.environment }}.tfstate"
+        working-directory: ${{ inputs.terraformPathFolder }}
 
+      # Terraform Plan
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan -out=tfplan
+        working-directory: ${{ inputs.terraformPathFolder }}
 
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v2
+      # Upload Plan Artifact
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
-          path: tfplan
+          name: terraform-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}/tfplan
 
-  wait_for_validation:
-    runs-on: ubuntu-latest
+  waitForValidation:
+    name: Wait for external validation for ${{ inputs.environment }}
     needs: plan
+    runs-on: ubuntu-latest
     steps:
-      - name: Manual Validation
-        uses: hmarr/validate-action@v1
+      - name: Wait for manual validation
+        uses: trstringer/manual-approval@v1
         with:
-          message: 'Please validate the Terraform plan and approve to continue.'
+          secret: ${{ github.token }}
+          approvers: user1,user2
+          minimum-approvals: 1
 
   apply:
+    name: Apply Terraform for ${{ inputs.environment }}
+    needs: waitForValidation
     runs-on: ubuntu-latest
-    needs: wait_for_validation
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v2
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          name: terraform-plan
-          path: .
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
+      # Download Plan Artifact
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
         with:
-          terraform_version: 1.0.0
+          name: terraform-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}
 
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Terraform Init (again, for apply)
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+                         -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+                         -backend-config="container_name=tfstate" \
+                         -backend-config="key=${{ inputs.environment }}.tfstate"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      # Terraform Apply
       - name: Terraform Apply
-        run: terraform apply tfplan
+        run: |
+          terraform apply -auto-approve tfplan
+        working-directory: ${{ inputs.terraformPathFolder }}
