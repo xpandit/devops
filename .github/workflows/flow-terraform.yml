@@ -6,9 +6,6 @@ on:
       environment:
         required: true
         type: string
-      azureConnection:
-        required: true
-        type: string
       appName:
         required: true
         type: string
@@ -19,9 +16,6 @@ on:
         required: false
         type: string
       storageAccountShared:
-        required: false
-        type: string
-      appConfigName:
         required: false
         type: string
     secrets:
