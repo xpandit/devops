@@ -6,9 +6,6 @@ on:
       vmImageName:
         required: true
         type: string
-      azureServiceConnection:
-        required: true
-        type: string
       resourceGroupName:
         required: true
         type: string
