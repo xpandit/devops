@@ -1,0 +1,124 @@
+name: Flow Terraform
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      appName:
+        required: true
+        type: string
+      terraformPathFolder:
+        required: false
+        type: string
+      resoureGroupShared:
+        required: false
+        type: string
+      storageAccountShared:
+        required: false
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+      AZURE_APPCONFIG_CONNECTION_STRING:
+        required: true
+      AZURE_SAKEY:
+        required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+
+jobs:
+  plan:
+    name: Plan Terraform for ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Terraform Init using sakey
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      # Terraform Plan 
+      - name: Terraform Plan
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          terraform plan -out=tfplan \
+            -var "client_id=${AZURE_CLIENT_ID}" \
+            -var "client_secret=${AZURE_CLIENT_SECRET}" \
+            -var "subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+            -var "tenant_id=${AZURE_TENANT_ID}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      # Upload Plan Artifact
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}/tfplan
+
+  waitForValidation:
+    name: Wait for external validation for ${{ inputs.environment }}
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for manual validation
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: leonelfgoncalves95
+          minimum-approvals: 1
+
+  apply:
+    name: Apply Terraform for ${{ inputs.environment }}
+    needs: waitForValidation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Download Plan Artifact
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}
+
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Terraform Init using sakey
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      # Terraform Apply
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve tfplan
+        working-directory: ${{ inputs.terraformPathFolder }}
