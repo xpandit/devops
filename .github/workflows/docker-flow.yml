@@ -1,0 +1,112 @@
+name: Flow Docker
+
+on:
+  workflow_call:
+    inputs:
+      vmImageName:
+        required: true
+        type: string
+      azureServiceConnection:
+        required: true
+        type: string
+      resourceGroupName:
+        required: true
+        type: string
+      containerRegistry:
+        required: true
+        type: string
+      containerAppName:
+        required: true
+        type: string
+      dockerfilePath:
+        required: true
+        type: string
+      imageRepository:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+
+jobs:
+  build_and_publish:
+    runs-on: ${{ inputs.vmImageName }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Create .env file from template
+      - name: Create .env file from template
+        run: |
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            varname=$(echo "$line" | cut -d= -f1)
+            if [ -n "$varname" ]; then
+              value=$(eval echo \$${varname})
+              if [ -n "$value" ]; then
+                echo "${varname}=${value}" >> .env
+              else
+                echo "${varname}=" >> .env
+              fi
+            fi
+          done < .env.template
+
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Azure Container Registry Login
+      - name: Azure Container Registry Login
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ inputs.containerRegistry }}
+
+      # Build Docker imagey76u
+      - name: Build Docker image
+        run: |
+          docker build -f ${{ inputs.dockerfilePath }} \
+            -t ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }} .
+
+      # Push Docker image to ACR
+      - name: Push Docker image to ACR
+        run: |
+          docker push ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }}
+
+  wait_for_validation:
+    name: Wait for external validation for ${{ inputs.environment }}
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for manual validation
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+
+  deploy_docker:
+    name: Deploy Docker for ${{ inputs.environment }}
+    needs: wait_for_validation
+    runs-on: ${{ inputs.vmImageName }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Login to Azure
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Deploy to Azure Container Apps (example)
+      - name: Deploy to Azure Container App
+        run: |
+          az containerapp update \
+            --name ${{ inputs.containerAppName }} \
+            --resource-group ${{ inputs.resourceGroupName }} \
+            --image ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }}

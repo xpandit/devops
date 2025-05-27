@@ -19,8 +19,6 @@ on:
         required: false
         type: string
     secrets:
-      AZURE_CREDENTIALS:
-        required: true
       AZURE_APPCONFIG_CONNECTION_STRING:
         required: true
       AZURE_SAKEY:
