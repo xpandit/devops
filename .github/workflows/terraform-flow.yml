@@ -22,7 +22,17 @@ on:
       AZURE_CREDENTIALS:
         required: true
       AZURE_APPCONFIG_CONNECTION_STRING:
-        required: false
+        required: true
+      AZURE_SAKEY:
+        required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
 
 jobs:
   plan:
@@ -31,48 +41,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Azure Login
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # Fetch variables from Azure App Configuration (secrets já buscadas)
-      - name: Fetch variables from App Configuration
-        if: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING != '' }}
-        uses: Azure/appconfiguration-get-keyvalues@v1
-        with:
-          connection-string: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING }}
-          key-filter: "${{ inputs.appName }}:global:shared:*"
-          label-filter: ""
-          trim-key-prefix: "${{ inputs.appName }}:global:shared:"
-
       # Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Terraform Init
+      # Terraform Init using sakey
       - name: Terraform Init
         run: |
-          terraform init -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
-                         -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
-                         -backend-config="container_name=tfstate" \
-                         -backend-config="key=${{ inputs.environment }}.tfstate"
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
-      # Terraform Plan
+      # Terraform Plan 
       - name: Terraform Plan
         env:
-          ARM_CLIENT_ID: ${{ env.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ env.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ env.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ env.ARM_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           terraform plan -out=tfplan \
-            -var "client_id=${ARM_CLIENT_ID}" \
-            -var "client_secret=${ARM_CLIENT_SECRET}" \
-            -var "subscription_id=${ARM_SUBSCRIPTION_ID}" \
-            -var "tenant_id=${ARM_TENANT_ID}"
+            -var "client_id=${AZURE_CLIENT_ID}" \
+            -var "client_secret=${AZURE_CLIENT_SECRET}" \
+            -var "subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+            -var "tenant_id=${AZURE_TENANT_ID}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
       # Upload Plan Artifact
@@ -91,7 +86,7 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.token }}
-          approvers: user1,user2
+          approvers: leonelfgoncalves95
           minimum-approvals: 1
 
   apply:
@@ -100,12 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Azure Login
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # Download Plan Artifact
       - name: Download Terraform Plan Artifact
@@ -118,13 +107,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Terraform Init (again, for apply)
+      # Terraform Init using sakey
       - name: Terraform Init
         run: |
-          terraform init -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
-                         -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
-                         -backend-config="container_name=tfstate" \
-                         -backend-config="key=${{ inputs.environment }}.tfstate"
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
       # Terraform Apply
