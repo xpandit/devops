@@ -24,9 +24,6 @@ on:
       tag:
         required: true
         type: string
-      environment:
-        required: true
-        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -76,7 +73,7 @@ jobs:
           docker push ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }}
 
   wait_for_validation:
-    name: Wait for external validation for ${{ inputs.environment }}
+    name: Wait for external validation
     needs: build_and_publish
     runs-on: ubuntu-latest
     steps:
@@ -88,7 +85,7 @@ jobs:
           minimum-approvals: 1
 
   deploy_docker:
-    name: Deploy Docker for ${{ inputs.environment }}
+    name: Deploy Docker
     needs: wait_for_validation
     runs-on: ${{ inputs.vmImageName }}
     steps:
