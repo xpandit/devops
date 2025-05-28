@@ -88,7 +88,7 @@ jobs:
 
   deploy_docker:
     name: Deploy Docker
-    needs: wait_for_validation
+    needs: build_and_publish
     runs-on: ${{ inputs.vmImageName }}
     steps:
       - uses: actions/checkout@v4
