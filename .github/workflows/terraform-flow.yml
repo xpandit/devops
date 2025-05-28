@@ -120,3 +120,9 @@ jobs:
         run: |
           terraform apply -auto-approve tfplan
         working-directory: ${{ inputs.terraformPathFolder }}
+      
+      # Terraform Show
+      - name: Terraform Show
+        run: |
+          terraform show
+        working-directory: ${{ inputs.terraformPathFolder }}
