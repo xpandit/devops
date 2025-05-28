@@ -1,0 +1,27 @@
+name: Deploy Terraform
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  plan-and-apply:
+    strategy:
+      matrix:
+        environment: [dv] # Add more environments as needed
+    uses: xpandit/devops/.github/workflows/terraform-flow.yml@main
+    with:
+      appName: XXXX
+      environment: ${{ matrix.environment }}
+      terraformPathFolder: .ci-cd/terraform/${{ matrix.environment }}
+      resoureGroupShared: 'XXXX'
+      storageAccountShared: 'XXXX'
+    secrets:
+      AZURE_APPCONFIG_CONNECTION_STRING: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING }}
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+      AZURE_SAKEY: ${{ secrets.AZURE_SAKEY }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

@@ -1,0 +1,21 @@
+name: Deploy Docker Container App
+
+on:
+  push:
+    branches:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  deploy-docker: 
+    uses: xpandit/devops/.github/workflows/docker-flow.yml@create-docker-template
+    with:
+      vmImageName: 'ubuntu-latest'
+      resourceGroupName: 'XXXX'
+      containerRegistry: 'XXXX.azurecr.io'
+      containerAppName: 'XXXX'
+      dockerfilePath: './Dockerfile'
+      imageRepository: 'XXXX'
+      tag: ${{ github.run_id }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}

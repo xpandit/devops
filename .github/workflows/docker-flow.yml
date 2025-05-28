@@ -74,21 +74,21 @@ jobs:
         run: |
           docker push ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }}
 
-  #wait_for_validation:
-  #  name: Wait for external validation
-  #  needs: build_and_publish
-  #  runs-on: ubuntu-latest
-  #  steps:
-  #    - name: Wait for manual validation
-  #      uses: trstringer/manual-approval@v1
-  #      with:
-  #        secret: ${{ github.token }}
-  #        approvers: ${{ github.actor }}
-  #        minimum-approvals: 1
+  wait_for_validation:
+    name: Wait for external validation
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for manual validation
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
 
   deploy_docker:
     name: Deploy Docker
-    needs: build_and_publish
+    needs: wait_for_validation
     runs-on: ${{ inputs.vmImageName }}
     steps:
       - uses: actions/checkout@v4
