@@ -60,6 +60,8 @@ jobs:
         uses: azure/docker-login@v2
         with:
           login-server: ${{ inputs.containerRegistry }}
+          username: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }}
+          password: ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }}
 
       # Build Docker imagey76u
       - name: Build Docker image
