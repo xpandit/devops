@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy-docker: 
-    uses: xpandit/devops/.github/workflows/docker-flow.yml@create-docker-template
+    uses: xpandit/devops/.github/workflows/docker-flow.yml@main
     with:
       vmImageName: 'ubuntu-latest'
       resourceGroupName: 'XXXX'
