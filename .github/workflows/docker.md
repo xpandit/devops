@@ -105,3 +105,4 @@ jobs:
 - AcrPush role on the ACR
 - Permission to update the specified Container App
 - The Dockerfile path and repository names must be correct and exist in your repo.
+- The **ARC**, must be **Admin user**: Resource -> Settings -> Access Keys -> Admin User must be checked.

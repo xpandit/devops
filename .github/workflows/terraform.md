@@ -115,7 +115,7 @@ jobs:
 - The Azure Service Principal must have sufficient permissions to manage resources defined in your Terraform code.
 - The Storage Account and Resource Group for the backend must exist and be accessible.
 - The Terraform configuration must support the variables passed in the workflow.
-- The **ARC**, must be **Admin user**: Resource -> Settings -> Access Keys -> Admin User must be checked.
+- Service Principal must have configured the Contributer role in the Subscription.
 
 ## Troubleshooting
 
