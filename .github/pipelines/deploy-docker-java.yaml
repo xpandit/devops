@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-and-publish:
-    uses: xpandit/devops/.github/workflows/docker-java-build-publish.yml@create-templates-sardines
+    uses: xpandit/devops/.github/workflows/docker-java-build-publish.yml@main
     with:
       vmImageName: 'ubuntu-latest'
       containerRegistry: 'XXXX.azurecr.io'
@@ -39,7 +39,7 @@ jobs:
       max-parallel: 1
       matrix:
         environment: [XXXX,XXXX]
-    uses: xpandit/devops/.github/workflows/docker-java-deploy.yml@create-templates-sardines
+    uses: xpandit/devops/.github/workflows/docker-java-deploy.yml@main
     with:
       vmImageName: 'ubuntu-latest'
       resourceGroupName: 'rg-XXXX-${{ matrix.environment }}-ne-001'
