@@ -1,0 +1,52 @@
+name: Deploy Docker Container App
+
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-docker-java.yaml'
+      - 'XXXX/**' # Replace 'XXXX' with the actual path to your Dockerfile or application code
+    branches:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    uses: xpandit/devops/.github/workflows/docker-java-build-publish.yml@main
+    with:
+      vmImageName: 'ubuntu-latest'
+      containerRegistry: 'XXXX.azurecr.io'
+      dockerfilePath: 'XXXX/Dockerfile'
+      imageRepository: 'XXXX'
+      tag: ${{ github.run_id }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+  waitForValidation:
+    name: Wait for external validation for ${{ inputs.environment }}
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for manual validation
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.token }}
+          approvers: XXXX
+          minimum-approvals: 1
+
+  deploy-container-app:
+    needs: waitForValidation
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: [XXXX,XXXX]
+    uses: xpandit/devops/.github/workflows/docker-java-deploy.yml@main
+    with:
+      vmImageName: 'ubuntu-latest'
+      resourceGroupName: 'rg-XXXX-${{ matrix.environment }}-ne-001'
+      containerAppName: 'ca-XXXX-${{ matrix.environment }}-ne-001'
+      containerRegistry: 'XXXX.azurecr.io'
+      imageRepository: 'XXXX'
+      tag: ${{ github.run_id }}
+      environment: ${{ matrix.environment }} 
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}

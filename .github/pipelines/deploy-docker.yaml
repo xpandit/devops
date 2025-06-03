@@ -2,6 +2,9 @@ name: Deploy Docker Container App
 
 on:
   push:
+    paths:
+      - '.github/workflows/deploy-docker.yaml'
+      - 'XXXX/**' # Replace 'XXXX' with the actual path to your Dockerfile or application code
     branches:
       - '*'
   workflow_dispatch:
