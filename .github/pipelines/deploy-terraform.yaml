@@ -2,6 +2,9 @@ name: Deploy Terraform
 
 on:
   push:
+    paths:
+      - '.github/workflows/deploy-terraform.yaml'
+      - '.ci-cd/terraform/**' # Adjust the path to your Terraform files
     branches:
       - '*'
   workflow_dispatch:
@@ -20,7 +23,6 @@ jobs:
       storageAccountShared: 'XXXX'
     secrets:
       AZURE_APPCONFIG_CONNECTION_STRING: ${{ secrets.AZURE_APPCONFIG_CONNECTION_STRING }}
-      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       AZURE_SAKEY: ${{ secrets.AZURE_SAKEY }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
