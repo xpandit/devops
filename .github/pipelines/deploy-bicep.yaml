@@ -1,0 +1,26 @@
+name: Deploy Bicep
+
+on:
+  push:
+    paths:
+      - '.ci-cd/bicep/**'
+      - '.github/workflows/deploy-bicep.yaml'
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    strategy:
+      matrix:
+        environment: [dev]
+    uses: xpandit/devops/.github/workflows/bicep-flow.yaml@main
+    with:
+      resource-group: rg-global-shared-${{ matrix.environment }}
+      bicep-file: .ci-cd/bicep/main.bicep
+      parameter-file: .ci-cd/bicep/parameters/${{ matrix.environment }}.parameters.json
+      location: northeurope
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
