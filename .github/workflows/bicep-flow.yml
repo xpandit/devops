@@ -18,7 +18,6 @@ on:
     secrets:
       AZURE_CREDENTIALS:
         required: true
-        type: string
 
 jobs:
   deploy:

@@ -6,7 +6,7 @@ on:
       - '.ci-cd/bicep/**'
       - '.github/workflows/deploy-bicep.yaml'
     branches:
-      - main
+      - '*'
   workflow_dispatch:
 
 jobs:
