@@ -9,9 +9,6 @@ on:
       bicep-file:
         required: true
         type: string
-      location:
-        required: true
-        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
