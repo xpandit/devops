@@ -33,7 +33,6 @@ jobs:
 
       - name: Deploy Bicep
         run: |
-          az deployment group create \
-            --resource-group ${{ inputs.resource-group }} \
-            --template-file ${{ inputs.bicep-file }} \
-            --parameters location=${{ inputs.location }}
+          az deployment group create `
+          --resource-group <your-resource-group> `
+          --template-file .ci-cd/bicep/main.bicep `
