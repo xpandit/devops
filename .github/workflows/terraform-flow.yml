@@ -30,9 +30,6 @@ on:
       AZURE_TENANT_ID:
         required: true
 
-permissions:
-  issues: write
-
 jobs:
   plan:
     name: Plan Terraform for ${{ inputs.environment }}
@@ -40,11 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Terraform Init using sakey
       - name: Terraform Init
         run: |
           terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
@@ -54,7 +49,6 @@ jobs:
             -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
-      # Terraform Plan 
       - name: Terraform Plan
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -69,44 +63,30 @@ jobs:
             -var "tenant_id=${AZURE_TENANT_ID}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
-      # Upload Plan Artifact
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         with:
           name: terraform-${{ inputs.environment }}
           path: ${{ inputs.terraformPathFolder }}/tfplan
 
-  waitForValidation:
-    name: Wait for external validation for ${{ inputs.environment }}
-    needs: plan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for manual validation
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.token }}
-          approvers: leonelfgoncalves95
-          minimum-approvals: 1
-
   apply:
     name: Apply Terraform for ${{ inputs.environment }}
-    needs: waitForValidation
+    needs: plan
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
-      # Download Plan Artifact
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v4
         with:
           name: terraform-${{ inputs.environment }}
           path: ${{ inputs.terraformPathFolder }}
 
-      # Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Terraform Init using sakey
       - name: Terraform Init
         run: |
           terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
@@ -116,13 +96,11 @@ jobs:
             -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
         working-directory: ${{ inputs.terraformPathFolder }}
 
-      # Terraform Apply
       - name: Terraform Apply
         run: |
           terraform apply -auto-approve tfplan
         working-directory: ${{ inputs.terraformPathFolder }}
       
-      # Terraform Show
       - name: Terraform Show
         run: |
           terraform show
