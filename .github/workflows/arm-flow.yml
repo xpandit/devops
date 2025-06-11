@@ -1,4 +1,4 @@
-name: Bicep Deploy Template
+name: ARM Deploy Template
 
 on:
   workflow_call:
@@ -6,7 +6,10 @@ on:
       resource-group:
         required: true
         type: string
-      bicep-file:
+      arm-file:
+        required: true
+        type: string
+      parameter-file:
         required: true
         type: string
     secrets:
@@ -25,12 +28,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure Resource Group
-        run: |
-          az group create --name ${{ inputs.resource-group }} --location northeurope
-
-      - name: Deploy Bicep
+      - name: Deploy ARM Template
         run: |
           az deployment group create \
             --resource-group ${{ inputs.resource-group }} \
-            --template-file ${{ inputs.bicep-file }}
+            --template-file ${{ inputs.arm-file }} \
+            --parameters @${{ inputs.parameter-file }}
