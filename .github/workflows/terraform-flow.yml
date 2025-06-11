@@ -19,6 +19,8 @@ on:
         required: false
         type: string
     secrets:
+      AZURE_CREDENTIALS:
+        required: true
       AZURE_SAKEY:
         required: true
       AZURE_CLIENT_ID:
@@ -39,6 +41,12 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       
       - name: Ensure Terraform backend container exists
         run: |
