@@ -30,6 +30,9 @@ on:
       AZURE_TENANT_ID:
         required: true
 
+permissions:
+  issues: write
+
 jobs:
   plan:
     name: Plan Terraform for ${{ inputs.environment }}
