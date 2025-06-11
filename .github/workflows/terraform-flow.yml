@@ -50,9 +50,9 @@ jobs:
       
       - name: Ensure Terraform backend container exists
         run: |
-          az storage container create `
-            --name ${{ inputs.appName }} `
-            --account-name ${{ inputs.storageAccountShared }} `
+          az storage container create \
+            --name ${{ inputs.appName }} \
+            --account-name ${{ inputs.storageAccountShared }} \
             --account-key ${{ secrets.AZURE_SAKEY }}
 
       - name: Terraform Init
