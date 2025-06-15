@@ -58,16 +58,16 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-        working-directory: backend/sardines
+        working-directory: ${{ inputs.dockerfilePath }}
 
       - name: Build Java project (skip tests)
         run: ./gradlew build -x test
-        working-directory: backend/sardines
+        working-directory: ${{ inputs.dockerfilePath }}
 
       - name: Build Docker image
         run: |
-          docker build -f ${{ inputs.dockerfilePath }} -t ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }} .
-        working-directory: backend/sardines
+          docker build -f Dockerfile -t ${{ inputs.containerRegistry }}/${{ inputs.imageRepository }}:${{ inputs.tag }} .
+        working-directory: ${{ inputs.dockerfilePath }}
 
       - name: Push Docker image to ACR
         run: |
