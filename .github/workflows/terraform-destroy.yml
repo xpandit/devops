@@ -1,0 +1,122 @@
+name: Destroy Terraform
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      appName:
+        required: true
+        type: string
+      terraformPathFolder:
+        required: false
+        type: string
+      resoureGroupShared:
+        required: false
+        type: string
+      storageAccountShared:
+        required: false
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+      AZURE_SAKEY:
+        required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+
+jobs:
+  plan:
+    name: Plan Destroy Terraform for ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Azure Login
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Ensure Terraform backend container exists
+        run: |
+          az storage container create \
+            --name ${{ inputs.appName }} \
+            --account-name ${{ inputs.storageAccountShared }} \
+            --account-key ${{ secrets.AZURE_SAKEY }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      - name: Terraform Plan Destroy
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          terraform plan -destroy -out=tfplan \
+            -var "client_id=${AZURE_CLIENT_ID}" \
+            -var "client_secret=${AZURE_CLIENT_SECRET}" \
+            -var "subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+            -var "tenant_id=${AZURE_TENANT_ID}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      - name: Upload Terraform Destroy Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-destroy-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}/tfplan
+
+  destroy:
+    name: Destroy Terraform for ${{ inputs.environment }}
+    needs: plan
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Terraform Destroy Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-destroy-${{ inputs.environment }}
+          path: ${{ inputs.terraformPathFolder }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="storage_account_name=${{ inputs.storageAccountShared }}" \
+            -backend-config="container_name=${{ inputs.appName }}" \
+            -backend-config="key=${{ inputs.environment }}/terraform.tfstate" \
+            -backend-config="resource_group_name=${{ inputs.resoureGroupShared }}" \
+            -backend-config="access_key=${{ secrets.AZURE_SAKEY }}"
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      - name: Terraform Destroy
+        run: |
+          terraform apply -auto-approve tfplan
+        working-directory: ${{ inputs.terraformPathFolder }}
+
+      - name: Terraform Show
+        run: |
+          terraform show
+        working-directory: ${{ inputs.terraformPathFolder }}
