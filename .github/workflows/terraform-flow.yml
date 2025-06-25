@@ -96,6 +96,8 @@ jobs:
         with:
           secret: ${{ secrets.GITHUB_TOKEN }}
           minimum-approvals: 1
+          approvers: ${{ github.actor }}
+        # You can replace '${{ github.actor }}' with a comma-separated list of GitHub usernames if you want specific approvers.
 
       - uses: actions/checkout@v4
 
