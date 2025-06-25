@@ -91,6 +91,12 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     steps:
+      - name: Manual Approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          minimum-approvals: 1
+
       - uses: actions/checkout@v4
 
       - name: Download Terraform Plan Artifact
