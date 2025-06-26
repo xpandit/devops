@@ -91,6 +91,13 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     steps:
+      - name: Manual Approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          minimum-approvals: 1
+          approvers: ${{ github.actor }}
+        # You can replace '${{ github.actor }}' with a comma-separated list of GitHub usernames if you want specific approvers.
       - uses: actions/checkout@v4
 
       - name: Download Terraform Destroy Plan Artifact
